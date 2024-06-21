@@ -104,6 +104,7 @@ v_tau[np.isnan(v_avg[:,0]*v_avg[:,1])] = 0.
 v_avg[np.isnan(v_avg[:,0]*v_avg[:,1])] = 0.
 
 # Write the average velocity to file
+output_Uobs = df.Function(ui.V,name='U_obs')
 Uobs_file = df.File(f'{results_dir}/nn/U_obs.pvd')
 output_Uobs.dat.data[:] = v_avg
 Uobs_file.write(output_Uobs)
@@ -122,6 +123,8 @@ Udef = torch.tensor(model.Udef0.dat.data[:])
 Ubar,Udef,H0 = fm.apply(H0,B,beta2_ref,adot,Ubar,Udef,model,adjoint,0.0,1e-5,solver_args)
 
 # Storing the output
+U_file = df.File(f'{results_dir}/nn/U_s.pvd')
+H_file = df.File(f'{results_dir}/nn/H.pvd')
 model.project_surface_velocity()
 U_file.write(model.U_s,time=0)
 H_file.write(model.H0)
