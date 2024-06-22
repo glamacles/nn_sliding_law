@@ -122,6 +122,9 @@ Ubar = torch.tensor(model.Ubar0.dat.data[:])
 Udef = torch.tensor(model.Udef0.dat.data[:])
 Ubar,Udef,H0 = fm.apply(H0,B,beta2_ref,adot,Ubar,Udef,model,adjoint,0.0,1e-5,solver_args)
 
+L = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)*750
+print(L.item())
+
 # Storing the output
 U_file = df.File(f'{results_dir}/nn/U_s.pvd')
 H_file = df.File(f'{results_dir}/nn/H.pvd')
