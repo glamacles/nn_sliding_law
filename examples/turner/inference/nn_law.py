@@ -1,4 +1,3 @@
-
 import os
 import sys
 import pickle
@@ -17,6 +16,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import NN
 torch.set_default_dtype(torch.float64)
 
 
@@ -140,4 +140,7 @@ S_grad = df.project(model.S_grad,V2)
 B_grad = df.project(model.B_grad,V2)
 
 features = torch.vstack((torch.tensor(B_f.dat.data[:]),torch.tensor(H_f.dat.data[:]),torch.linalg.norm(torch.tensor(S_grad.dat.data[:]),axis=1),torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1))).T
+
+Nhidden = 8
+model = NN.NeuralNetwork(4, Nhidden)
 
