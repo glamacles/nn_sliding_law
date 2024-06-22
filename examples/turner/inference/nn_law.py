@@ -8,7 +8,7 @@ import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("once",category=DeprecationWarning)
     import firedrake as df
-    from speceis.hybrid import CoupledModel, CoupledModelAdjoint, FenicsModel, VelocityIntegral, VelocityCost
+    from speceis.hybrid import CoupledModel, CoupledModelAdjoint, FenicsModel, VelocityIntegral, VelocityCost, MTWToCG1Firedrake, VelocityProjector
 import logging
 logging.captureWarnings(True)
 
@@ -54,7 +54,7 @@ config = {'solver_type': 'gmres',
           'calve': 'b'}
 
 # Define some model solver arguments
-solver_args =         {'picard_tol':1e-3,
+`solver_args =         {'picard_tol':1e-3,
                        'momentum':0.5,
                        'max_iter':100,
                        'convergence_norm':'linf',
@@ -70,6 +70,8 @@ fm = FenicsModel
 # over velocity and associate pytorch function
 ui = VelocityIntegral(model,mode='lin',p=2.0,gamma=1.0)
 um = VelocityCost
+ugrid = MTWToCG1Firedrake(model)
+uproject = VelocityProjector
 
 # Read in some velocity data at a bunch of years
 years = [y for y in range(1985,2023)]
@@ -139,7 +141,12 @@ V2 = df.VectorFunctionSpace(mesh,"CG",1)
 S_grad = df.project(model.S_grad,V2)
 B_grad = df.project(model.B_grad,V2)
 
-features = torch.vstack((torch.tensor(B_f.dat.data[:]),torch.tensor(H_f.dat.data[:]),torch.linalg.norm(torch.tensor(S_grad.dat.data[:]),axis=1),torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1))).T
+ugrid = MTWToCG1Firedrake(model)
+uproject = VelocityProjector
+
+Ubasal = uproject(Ubar, Udef, ugrid)
+
+features = torch.vstack((torch.tensor(H_f.dat.data[:]),torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1)), torch.linalg.norm(Ubasal, axis=1)).T
 
 Nhidden = 128
 beta_model = NN.NeuralNetwork(4, Nhidden)
@@ -147,12 +154,10 @@ optimizer = torch.optim.Adam(beta_model.parameters(), lr=1e-2)
 
 iters = 1000
 L = []
+Ubasal_prev = Ubasal
 for i in range(iters):
-
     # Foward pass
     # Picard iteration on V
-    for 
-    whi
     log_beta = beta_model(features)
     beta = torch.exp(log_beta)
     Ubar,Udef,H = fm.apply(H0,B,beta.squeeze(),adot,Ubar.detach(),Udef.detach(),model,adjoint,0.0,1e-5,solver_args)
