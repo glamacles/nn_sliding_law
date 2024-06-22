@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import NN
+import matplotlib.pyplot as plt
 torch.set_default_dtype(torch.float64)
 
 
@@ -123,7 +124,6 @@ Udef = torch.tensor(model.Udef0.dat.data[:])
 Ubar,Udef,H0 = fm.apply(H0,B,beta2_ref,adot,Ubar,Udef,model,adjoint,0.0,1e-5,solver_args)
 
 L = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)*750
-print(L.item())
 
 # Storing the output
 U_file = df.File(f'{results_dir}/nn/U_s.pvd')
@@ -141,6 +141,29 @@ B_grad = df.project(model.B_grad,V2)
 
 features = torch.vstack((torch.tensor(B_f.dat.data[:]),torch.tensor(H_f.dat.data[:]),torch.linalg.norm(torch.tensor(S_grad.dat.data[:]),axis=1),torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1))).T
 
-Nhidden = 8
-model = NN.NeuralNetwork(4, Nhidden)
+Nhidden = 128
+beta_model = NN.NeuralNetwork(4, Nhidden)
+optimizer = torch.optim.Adam(beta_model.parameters(), lr=1e-2)
 
+iters = 1000
+L = []
+for i in range(iters):
+
+    # Foward pass
+    # Picard iteration on V
+    for 
+    whi
+    log_beta = beta_model(features)
+    beta = torch.exp(log_beta)
+    Ubar,Udef,H = fm.apply(H0,B,beta.squeeze(),adot,Ubar.detach(),Udef.detach(),model,adjoint,0.0,1e-5,solver_args)
+    model.project_surface_velocity()
+    U_file.write(model.U_s,time=i)
+    loss = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)
+    
+    # Backpropagation
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+    L.append(loss.detach().item())
+    print(loss.detach().item() * 1000)
+        

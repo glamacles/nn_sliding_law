@@ -7,6 +7,7 @@ class NeuralNetwork(nn.Module):
         self.flatten = nn.Flatten()
         self.NN_layers = nn.Sequential(
             nn.Linear(Nfeat, Nhidden),
+            nn.Tanh(),
             nn.Linear(Nhidden, 1)
         )
 
