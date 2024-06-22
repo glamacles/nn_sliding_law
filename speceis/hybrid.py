@@ -792,4 +792,68 @@ class Projector(torch.autograd.Function):
         J_bar = df.assemble(residual.grad)
         return torch.tensor(J_bar.dat.data[:]), None, None
 
+class MTWToCG1Firedrake:
+    def __init__(self,model):
+        self.model = model
+        self.V = df.VectorFunctionSpace(model.mesh,"CG",1)
+
+        self.r = df.Function(self.V)
+        self.delta = df.Function(self.V)
+        self.lamda = df.Function(self.V)
+        self.w = df.TestFunction(self.V)
+        
+        self.dw = df.TrialFunction(self.V)
+
+        self.Ubar = df.Function(model.Q_bar)
+        self.Udef = df.Function(model.Q_def)
+
+        self.Phi_bar = df.TestFunction(model.Q_bar)
+        self.Phi_def = df.TestFunction(model.Q_def)
+
+        self.fwd = df.dot(self.w,self.dw - (self.Ubar + self.Udef))*df.dx
+        self.adj = -df.dot(self.w,self.dw)*df.dx
+        self.gradbar = -df.dot(self.lamda,self.Phi_bar)*df.dx
+        self.graddef = -df.dot(self.lamda,self.Phi_def)*df.dx
+
+        self.ksp = PETSc.KSP().create()
+        self.ksp.setType('gmres')
+        pc = self.ksp.getPC()
+        pc.setType('ilu')
+        self.ksp.setTolerances(1e-6)
+
+
+class VelocityProjector(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx,Ubar,Udef,f):
+        ctx.f = f
+        ctx.Ubar = Ubar
+        ctx.Udef = Udef
+        f.Ubar.dat.data[:] = Ubar
+        f.Udef.dat.data[:] = Udef
+
+        df.solve(df.lhs(f.fwd)==df.rhs(f.fwd),f.r)
+        return torch.tensor(f.r.dat.data[:])
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        f = ctx.f
+        Ubar = ctx.Ubar
+        Udef = ctx.Udef
+        f.Ubar.dat.data[:] = Ubar
+        f.Udef.dat.data[:] = Udef
+        f.delta.dat.data[:] = grad_output.detach().numpy()
+
+        A = df.assemble(f.adj,mat_type='aij')
+        f.ksp.setOperators(A.M.handle)
+
+        with f.delta.dat.vec_ro as vec:
+            with f.lamda.dat.vec as sol:
+                f.ksp.solve(vec,sol)
+
+        J_bar = df.assemble(f.gradbar)
+        J_def = df.assemble(f.graddef)
+        return torch.tensor(J_bar.dat.data[:]), torch.tensor(J_def.dat.data[:]), None
+
+
+
 
