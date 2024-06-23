@@ -54,7 +54,7 @@ config = {'solver_type': 'gmres',
           'calve': 'b'}
 
 # Define some model solver arguments
-`solver_args =         {'picard_tol':1e-3,
+solver_args =         {'picard_tol':1e-3,
                        'momentum':0.5,
                        'max_iter':100,
                        'convergence_norm':'linf',
@@ -145,8 +145,9 @@ ugrid = MTWToCG1Firedrake(model)
 uproject = VelocityProjector
 
 Ubasal = uproject(Ubar, Udef, ugrid)
-
-features = torch.vstack((torch.tensor(H_f.dat.data[:]),torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1)), torch.linalg.norm(Ubasal, axis=1)).T
+features = torch.vstack((torch.tensor(H_f.dat.data[:]),
+                         torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1)),
+                        torch.linalg.norm(Ubasal, axis=1)).T
 
 Nhidden = 128
 beta_model = NN.NeuralNetwork(4, Nhidden)
@@ -154,13 +155,17 @@ optimizer = torch.optim.Adam(beta_model.parameters(), lr=1e-2)
 
 iters = 1000
 L = []
-Ubasal_prev = Ubasal
+
 for i in range(iters):
     # Foward pass
     # Picard iteration on V
     log_beta = beta_model(features)
     beta = torch.exp(log_beta)
     Ubar,Udef,H = fm.apply(H0,B,beta.squeeze(),adot,Ubar.detach(),Udef.detach(),model,adjoint,0.0,1e-5,solver_args)
+    Ubasal = uproject(Ubar, Udef, ugrid)
+    features = torch.vstack((torch.tensor(H_f.dat.data[:]),
+                            torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1)),
+                            torch.linalg.norm(Ubasal, axis=1)).T
     model.project_surface_velocity()
     U_file.write(model.U_s,time=i)
     loss = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)
@@ -170,5 +175,4 @@ for i in range(iters):
     optimizer.step()
     optimizer.zero_grad()
     L.append(loss.detach().item())
-    print(loss.detach().item() * 1000)
-        
+    print(loss.detach().item())
