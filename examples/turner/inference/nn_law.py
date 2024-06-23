@@ -115,7 +115,7 @@ Uobs_file.write(output_Uobs)
 # Load geometry and mass balance info (mass balance info may not be used)
 B = pickle.load(open('./init_data/B.p','rb'))
 H0 = pickle.load(open('./init_data/H.p','rb'))
-adot = pickle.load(open('./init_data/adot.p','rb'))
+adot0 = pickle.load(open('./init_data/adot.p','rb'))
 log_beta_ref = pickle.load(open('./init_data/log_beta_reference.p','rb')) # This is the traction field that I found in the bed inversion problem.
                                                                           # Only works with linear sliding law
 beta2_ref = torch.exp(log_beta_ref)
@@ -123,13 +123,14 @@ beta2_ref = torch.exp(log_beta_ref)
 # Running a model 
 Ubar = torch.tensor(model.Ubar0.dat.data[:])
 Udef = torch.tensor(model.Udef0.dat.data[:])
-Ubar,Udef,H0 = fm.apply(H0,B,beta2_ref,adot,Ubar,Udef,model,adjoint,0.0,1e-5,solver_args)
+Ubar,Udef,H0 = fm.apply(H0,B,beta2_ref,adot0,Ubar,Udef,model,adjoint,0.0,1e-5,solver_args)
 
 L = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)*750
 
 # Storing the output
 U_file = df.File(f'{results_dir}/nn/U_s.pvd')
 H_file = df.File(f'{results_dir}/nn/H.pvd')
+beta_file = df.File(f'{results_dir}/nn/beta.pvd')
 model.project_surface_velocity()
 U_file.write(model.U_s,time=0)
 H_file.write(model.H0)
@@ -140,39 +141,44 @@ B_f = df.project(model.B,model.Q_cg1)
 V2 = df.VectorFunctionSpace(mesh,"CG",1)
 S_grad = df.project(model.S_grad,V2)
 B_grad = df.project(model.B_grad,V2)
+adot = df.project(model.adot, model.Q_cg1)
 
 ugrid = MTWToCG1Firedrake(model)
 uproject = VelocityProjector
 
-Ubasal = uproject(Ubar, Udef, ugrid)
-features = torch.vstack((torch.tensor(H_f.dat.data[:]),
-                         torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1)),
-                        torch.linalg.norm(Ubasal, axis=1)).T
-
 Nhidden = 128
-beta_model = NN.NeuralNetwork(4, Nhidden)
+beta_model = NN.NeuralNetwork(7, Nhidden)
 optimizer = torch.optim.Adam(beta_model.parameters(), lr=1e-2)
-
-iters = 1000
+features = torch.vstack((torch.tensor(H_f.dat.data[:]),
+                         torch.tensor(B_grad.dat.data[:].T),
+                         torch.tensor(B_f.dat.data[:]),
+                         torch.tensor(S_grad.dat.data[:].T),
+                         # torch.linalg.norm(Ubasal, axis=1),
+                         torch.tensor(adot.dat.data[:]))).T
+    
+grad_iters = 1000
+picard_iters = 1
 L = []
 
-for i in range(iters):
+for i in range(grad_iters):
     # Foward pass
-    # Picard iteration on V
+    #Ubar = Ubar.detach()
+    #Udef = Udef.detach()
+    #for p_iter in range(picard_iters): 
+    #Ubasal = uproject.apply(Ubar, Udef, ugrid)
     log_beta = beta_model(features)
     beta = torch.exp(log_beta)
-    Ubar,Udef,H = fm.apply(H0,B,beta.squeeze(),adot,Ubar.detach(),Udef.detach(),model,adjoint,0.0,1e-5,solver_args)
-    Ubasal = uproject(Ubar, Udef, ugrid)
-    features = torch.vstack((torch.tensor(H_f.dat.data[:]),
-                            torch.linalg.norm(torch.tensor(B_grad.dat.data[:]),axis=1)),
-                            torch.linalg.norm(Ubasal, axis=1)).T
+    Ubar,Udef,H = fm.apply(H0,B,beta.squeeze(),adot0,Ubar.detach(),Udef.detach(),model,adjoint,0.0,1e-5,solver_args)
     model.project_surface_velocity()
     U_file.write(model.U_s,time=i)
     loss = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)
-    
+    print(i, loss.item() * 1000)
     # Backpropagation
     loss.backward()
     optimizer.step()
     optimizer.zero_grad()
     L.append(loss.detach().item())
-    print(loss.detach().item())
+
+plt.plot([i for i in range(grad_iters)], L)
+torch.save(beta_model, 'beta_model.pt')
+plt.show()
