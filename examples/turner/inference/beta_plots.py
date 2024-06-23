@@ -48,6 +48,10 @@ Bgradx_grid = np.linspace(Bgradxmin, Bgradxmax, 300)
 
 adotp1 = adot(point1)
 adotp2 = adot(point2)
+adotmax = adot.dat.data[:].max()
+adotmin = adot.dat.data[:].min()
+adot_grid = np.linspace(adotmin, adotmax, 300)
+
 
 H_curvep1 = torch.vstack([torch.tensor(H_grid),
               torch.tensor(Bp1 * np.ones(H_grid.shape)),
@@ -154,19 +158,65 @@ beta_by_Hp2 = torch.exp(logbeta_by_Hp2)
 logbeta_by_Bp1 = beta_model(B_curvep1)
 beta_by_Bp1 = torch.exp(logbeta_by_Bp1)
 
+logbeta_by_Bp2 = beta_model(B_curvep2)
+beta_by_Bp2 = torch.exp(logbeta_by_Bp2)
 
-plt.plot(H_grid, beta_by_Hp1.detach().numpy())
-plt.savefig("beta_by_H_point1.png")
+logbeta_by_Sgradxp1 = beta_model(Sgradx_curvep1)
+beta_by_Sgradxp1 = torch.exp(logbeta_by_Sgradxp1)
+
+logbeta_by_Sgradxp2 = beta_model(Sgradx_curvep2)
+beta_by_Sgradxp2 = torch.exp(logbeta_by_Sgradxp2)
+
+logbeta_by_Bgradxp1 = beta_model(Bgradx_curvep1)
+beta_by_Bgradxp1 = torch.exp(logbeta_by_Bgradxp1)
+
+logbeta_by_Bgradxp2 = beta_model(Bgradx_curvep2)
+beta_by_Bgradxp2 = torch.exp(logbeta_by_Bgradxp2)
+
+logbeta_by_adotp1 = beta_model(adot_curvep1)
+beta_by_adotp1 = torch.exp(logbeta_by_adotp1)
+
+logbeta_by_adotp2 = beta_model(adot_curvep2)
+beta_by_adotp2 = torch.exp(logbeta_by_adotp2)
+
+
+
+
+plt.plot(H_grid, logbeta_by_Hp1.detach().numpy())
+plt.plot(H_grid, logbeta_by_Hp2.detach().numpy())
+plt.xlabel("Thickness")
+plt.ylabel("log(beta)")
+plt.legend(["first point", "second point"])
+plt.savefig("beta_by_H.png")
 plt.cla()
 
-plt.plot(H_grid, beta_by_Hp2.detach().numpy())
-plt.savefig("beta_by_H_point2.png")
+plt.plot(B_grid, logbeta_by_Bp1.detach().numpy())
+plt.plot(B_grid, logbeta_by_Bp2.detach().numpy())
+plt.xlabel("Bed Height")
+plt.ylabel("log(beta)")
+plt.legend(["first point", "second point"])
+plt.savefig("beta_by_B.png")
 plt.cla()
 
-plt.plot(B_grid, beta_by_Bp1.detach().numpy())
-plt.savefig("beta_by_B_point1.png")
+plt.plot(Sgradx_grid, logbeta_by_Sgradxp1.detach().numpy())
+plt.plot(Sgradx_grid, logbeta_by_Sgradxp2.detach().numpy())
+plt.xlabel("x surface gradient")
+plt.ylabel("log(beta)")
+plt.legend(["first point", "second point"])
+plt.savefig("beta_by_Sgradx.png")
+plt.cla()
 
+plt.plot(Bgradx_grid, logbeta_by_Bgradxp1.detach().numpy())
+plt.plot(Bgradx_grid, logbeta_by_Bgradxp2.detach().numpy())
+plt.xlabel("x bed gradient")
+plt.legend(["first point", "second point"])
+plt.ylabel("log(beta)")
+plt.savefig("beta_by_bgradx.png")
+plt.cla()
 
-# beta depedancies with synthetic data
-
-#torch.tensor
+plt.plot(adot_grid, logbeta_by_adotp1.detach().numpy())
+plt.plot(adot_grid, logbeta_by_adotp2.detach().numpy())
+plt.xlabel("accumulation rate")
+plt.ylabel("log(beta)")
+plt.legend(["first point", "second point"])
+plt.savefig("beta_by_accumulation.png")

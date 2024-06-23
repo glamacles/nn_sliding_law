@@ -154,8 +154,6 @@ with CheckpointFile("features.h5", 'w') as save_file:
     save_file.save_function(S_grad)
     save_file.save_function(B_grad)
     save_file.save_function(adot)
-
-exit(0)
     
 ugrid = MTWToCG1Firedrake(model)
 uproject = VelocityProjector
@@ -186,7 +184,7 @@ for i in range(grad_iters):
     model.project_surface_velocity()
     U_file.write(model.U_s,time=i)
     loss = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)
-    print(i, loss.item() * 100)
+    print(i, loss.item() * 1000)
     # Backpropagation
     loss.backward()
     optimizer.step()
