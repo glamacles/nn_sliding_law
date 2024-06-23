@@ -18,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import NN
 import matplotlib.pyplot as plt
+from firedrake.checkpointing import CheckpointFile
 torch.set_default_dtype(torch.float64)
 
 
@@ -130,19 +131,32 @@ L = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)*750
 # Storing the output
 U_file = df.File(f'{results_dir}/nn/U_s.pvd')
 H_file = df.File(f'{results_dir}/nn/H.pvd')
-beta_file = df.File(f'{results_dir}/nn/beta.pvd')
+B_f_file = df.File(f'{results_dir}/nn/B_f.pvd')
+S_grad_file = df.File(f'{results_dir}/nn/S_grad.pvd')
+B_grad_file = df.File(f'{results_dir}/nn/B_grad.pvd')
+adot_file = df.File(f'{results_dir}/nn/adot.pvd')
 model.project_surface_velocity()
-U_file.write(model.U_s,time=0)
-H_file.write(model.H0)
+
+#U_file.write(model.U_s,time=0)
 
 # Computing a vector of features
-H_f = df.project(model.H0,model.Q_cg1)
-B_f = df.project(model.B,model.Q_cg1)
+H_f = df.project(model.H0,model.Q_cg1, name='H0')
+B_f = df.project(model.B,model.Q_cg1, name='B')
 V2 = df.VectorFunctionSpace(mesh,"CG",1)
-S_grad = df.project(model.S_grad,V2)
-B_grad = df.project(model.B_grad,V2)
-adot = df.project(model.adot, model.Q_cg1)
+S_grad = df.project(model.S_grad,V2, name='S_grad')
+B_grad = df.project(model.B_grad,V2, name='B_grad')
+adot = df.project(model.adot, model.Q_cg1, name='adot')
 
+with CheckpointFile("features.h5", 'w') as save_file:
+    save_file.save_mesh(mesh)
+    save_file.save_function(H_f)
+    save_file.save_function(B_f)
+    save_file.save_function(S_grad)
+    save_file.save_function(B_grad)
+    save_file.save_function(adot)
+
+exit(0)
+    
 ugrid = MTWToCG1Firedrake(model)
 uproject = VelocityProjector
 
@@ -172,7 +186,7 @@ for i in range(grad_iters):
     model.project_surface_velocity()
     U_file.write(model.U_s,time=i)
     loss = um.apply(Ubar,Udef,v_avg,v_tau,v_mask,ui)
-    print(i, loss.item() * 1000)
+    print(i, loss.item() * 100)
     # Backpropagation
     loss.backward()
     optimizer.step()
