@@ -56,9 +56,7 @@ def plot_depedancy(feature, feature_idx, feature_list, points, model_filename, f
             curve_coordinates = torch.cat([curve_coordinates[:feature_idx],
                                            torch.unsqueeze(torch.tensor(feature_grid),0),
                                            curve_coordinates[feature_idx:]], 0).T
-
             
-        print(curve_coordinates)
         logbeta = beta_model(curve_coordinates)
         plt.plot(feature_grid, logbeta.detach().numpy())
         leg_label.append(str(point))
