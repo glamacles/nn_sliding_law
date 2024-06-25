@@ -4,11 +4,11 @@ import numpy as np
 import firedrake as df
 from firedrake.checkpointing import CheckpointFile
 
-def plot_depedancy_contour(feature, contour_feature):
+def plot_dependency_contour(feature, contour_feature):
 
     return None
 
-def plot_depedancy(feature, feature_idx, feature_list, points, model_filename, feature_filename, plot_filename, nsamples=300, direction=None):
+def plot_dependency(feature, feature_idx, feature_list, points, model_filename, feature_filename, plot_filename, nsamples=300, direction=None):
     '''
     Params:
         feature - string, name of feature to plot
