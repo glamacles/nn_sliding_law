@@ -12,6 +12,7 @@ class NeuralNetwork(nn.Module):
         )
 
     def forward(self, x):
+        
         x = self.flatten(x)
         out = self.NN_layers(x)
         return out
